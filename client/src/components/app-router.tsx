@@ -11,6 +11,7 @@ import MergeBoxesPage from "@/pages/merge-boxes-page";
 import PickupPage from "@/pages/pickup-page";
 import DeliveryPage from "@/pages/delivery-page";
 import UnloadBoxPage from "@/pages/unload-box-page";
+import ProfilePage from "@/pages/profile-page";
 import { useAuth } from "@/hooks/use-auth";
 
 // Custom ProtectedRoutes component that uses the AuthContext
@@ -40,6 +41,7 @@ function ProtectedRoutes() {
       <Route path="/pickup" component={PickupPage} />
       <Route path="/delivery" component={DeliveryPage} />
       <Route path="/unload-box" component={UnloadBoxPage} />
+      <Route path="/profile" component={ProfilePage} />
       <Route component={NotFound} />
     </Switch>
   );
