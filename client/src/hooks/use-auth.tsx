@@ -44,6 +44,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         title: "Connecté avec succès",
         description: `Bienvenue, ${user.name}!`,
       });
+      // Redirection après le toast
+      setTimeout(() => {
+        window.location.href = "/";
+      }, 500);
     },
     onError: (error: Error) => {
       toast({
@@ -65,6 +69,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         title: "Connecté avec succès",
         description: `Bienvenue, ${user.name}!`,
       });
+      // Redirection après le toast
+      setTimeout(() => {
+        window.location.href = "/";
+      }, 500);
     },
     onError: (error: Error) => {
       toast({
@@ -86,6 +94,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         title: "Compte créé avec succès",
         description: `Bienvenue, ${user.name}!`,
       });
+      // Redirection après le toast
+      setTimeout(() => {
+        window.location.href = "/";
+      }, 500);
     },
     onError: (error: Error) => {
       toast({
