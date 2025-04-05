@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useLabContext } from "@/hooks/use-lab-context";
 import { FlaskConical, ChevronDown, User } from "lucide-react";
+import { useLocation } from "wouter"; // Correction: seul useLocation est importé
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,6 +16,7 @@ import {
 export default function Header() {
   const { user, logoutMutation } = useAuth();
   const { labs, currentLab, setCurrentLab } = useLabContext();
+  const [location, navigate] = useLocation(); // Correction: useLocation retourne [location, navigate]
   
   // Get user initials for avatar
   const getUserInitials = (name: string) => {
@@ -28,6 +30,10 @@ export default function Header() {
 
   const handleLogout = () => {
     logoutMutation.mutate();
+  };
+
+  const handleProfileClick = () => {
+    navigate("/profile"); // Utilisation correcte de la fonction navigate
   };
 
   return (
@@ -59,37 +65,37 @@ export default function Header() {
               </DropdownMenuContent>
             </DropdownMenu>
           )}
-
-          {/* User Menu */}
-          {user && (
-            <DropdownMenu>
-              <DropdownMenuTrigger className="flex items-center space-x-2">
-                <div className="bg-primary rounded-full w-8 h-8 flex items-center justify-center text-white">
-                  <span>{getUserInitials(user.name)}</span>
-                </div>
-                <span className="text-sm font-medium text-gray-700 hidden md:inline-block">
-                  {user.name}
-                </span>
-                <ChevronDown className="h-4 w-4 text-gray-500" />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuLabel className="border-b pb-2">
-                  <p className="text-sm font-medium text-gray-900">{user.name}</p>
-                  <p className="text-sm text-gray-500">{user.role}</p>
-                </DropdownMenuLabel>
-                <DropdownMenuGroup>
-                  <DropdownMenuItem>
-                    <User className="mr-2 h-4 w-4" />
-                    <span>Mon profil</span>
-                  </DropdownMenuItem>
-                </DropdownMenuGroup>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleLogout}>
-                  Déconnexion
+        
+        {/* User Menu */}
+        {user && (
+          <DropdownMenu>
+            <DropdownMenuTrigger className="flex items-center space-x-2">
+              <div className="bg-primary rounded-full w-8 h-8 flex items-center justify-center text-white">
+                <span>{getUserInitials(user.name)}</span>
+              </div>
+              <span className="text-sm font-medium text-gray-700 hidden md:inline-block">
+                {user.name}
+              </span>
+              <ChevronDown className="h-4 w-4 text-gray-500" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuLabel className="border-b pb-2">
+                <p className="text-sm font-medium text-gray-900">{user.name}</p>
+                <p className="text-sm text-gray-500">{user.role}</p>
+              </DropdownMenuLabel>
+              <DropdownMenuGroup>
+                <DropdownMenuItem onClick={handleProfileClick}>
+                  <User className="mr-2 h-4 w-4" />
+                  <span>Mon profil</span>
                 </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
+              </DropdownMenuGroup>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleLogout}>
+                Déconnexion
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
         </div>
       </div>
     </header>
