@@ -33,6 +33,7 @@ export interface IStorage {
   getUserByUsername(username: string): Promise<User | undefined>;
   getUserByBarcode(barcode: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  updateUser(id: number, userData: Partial<Omit<User, "id" | "createdAt" | "password">>): Promise<User | undefined>;
   
   // Lab management
   getLab(id: number): Promise<Lab | undefined>;
@@ -180,6 +181,18 @@ export class MemStorage implements IStorage {
     const user: User = { ...insertUser, id, createdAt: now };
     this.users.set(id, user);
     return user;
+  }
+  
+  async updateUser(id: number, userData: Partial<Omit<User, "id" | "createdAt" | "password">>): Promise<User | undefined> {
+    const user = this.users.get(id);
+    if (!user) return undefined;
+    
+    const updatedUser: User = { 
+      ...user, 
+      ...userData
+    };
+    this.users.set(id, updatedUser);
+    return updatedUser;
   }
   
   // Lab methods
@@ -680,6 +693,15 @@ export class DatabaseStorage implements IStorage {
       .values(insertUser)
       .returning();
     return user;
+  }
+  
+  async updateUser(id: number, userData: Partial<Omit<User, "id" | "createdAt" | "password">>): Promise<User | undefined> {
+    const [updatedUser] = await db
+      .update(users)
+      .set(userData)
+      .where(eq(users.id, id))
+      .returning();
+    return updatedUser;
   }
   
   // Lab methods

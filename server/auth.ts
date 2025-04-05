@@ -117,4 +117,26 @@ export function setupAuth(app: Express) {
     if (!req.isAuthenticated()) return res.sendStatus(401);
     res.json(req.user);
   });
+  
+  // Update user profile
+  app.patch("/api/users/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    
+    const userId = parseInt(req.params.id);
+    // Vérifier que l'utilisateur modifie bien son propre profil
+    if (req.user?.id !== userId) {
+      return res.status(403).json({ message: "Vous n'êtes pas autorisé à modifier ce profil" });
+    }
+    
+    try {
+      const updatedUser = await storage.updateUser(userId, req.body);
+      if (!updatedUser) {
+        return res.status(404).json({ message: "Utilisateur non trouvé" });
+      }
+      res.json(updatedUser);
+    } catch (error: any) {
+      console.error("Error updating user:", error);
+      res.status(500).json({ message: "Erreur lors de la mise à jour du profil" });
+    }
+  });
 }
