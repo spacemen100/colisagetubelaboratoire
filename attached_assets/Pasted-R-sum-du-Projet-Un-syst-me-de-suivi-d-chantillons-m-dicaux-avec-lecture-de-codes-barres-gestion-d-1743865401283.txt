@@ -1,0 +1,56 @@
+Résumé du Projet
+Un système de suivi d'échantillons médicaux avec lecture de codes-barres, gestion des boîtes de transport et suivi du transport.
+
+Architecture Proposée
+L'application sera développée avec une architecture frontend React et backend Express.js:
+
+Frontend:
+
+Application React avec onglets multiples
+Intégration de lecteur de codes-barres
+Gestion des formulaires pour différentes opérations
+Gestion d'état pour le contexte du laboratoire
+Backend:
+
+Serveur Express.js
+API d'authentification
+Système de suivi des échantillons
+Points d'accès pour la gestion des boîtes
+API de statut de transport
+Stockage en mémoire pour le MVP avec modèle de données structuré
+Fonctionnalités Clés
+Tableau de bord avec indicateurs clés
+Système d'Alertes pour événements critiques
+Import des données du lecteur de mémoire
+Scan des tubes et assignation d'action (exigences de température)
+Gestion des boîtes (chargement, fusion, suivi)
+Suivi du transport (ramassage et livraison)
+Sélecteur du laboratoire (menu déroulant)
+Système d'authentification (scan de code-barres employé ou ID/mot de passe)
+Interface Utilisateur
+Interface intuitive avec navigation entre onglets
+Éléments codés par couleur pour différentes exigences de température
+Hiérarchie visuelle claire pour les alertes et informations importantes
+Design responsive pour utilisation potentielle sur tablette/mobile
+Stack Technologique
+Frontend:
+
+React
+Tailwind CSS
+Shadcn UI
+React Hook Form
+Bibliothèque de lecture de codes-barres
+Context API pour la gestion d'état
+Backend:
+
+Express.js
+Stockage en mémoire côté serveur
+Middleware d'authentification
+Points d'accès API RESTful
+Fonctionnalités Futures
+Intégration d'une base de données PostgreSQL pour un stockage persistant
+Rapports avancés et analytiques
+Intégration avec l'API des équipements de laboratoire
+Application mobile pour utilisation sur le terrain
+
+Concernant le scan de codes-barres : J'utilise les deux : des scanners physiques dédiés ou la caméra d'un appareil (tablette/smartphone). J'utilise des code barre 1D. Pour le système d'authentification : Je préfère commencer par le scan de codes-barres employés et en deuxième option par le système identifiant/mot de passe si ce n'est pas possible. Pour les données des tubes et échantillons : Chaque tube doit contenir comme informations minimales : nature du tube, code barre, numero de dossier, nom et prenom patient. Les stauts de transport sont "pas encore colisé", colisé sur le départ", "recupéré par cousrier", "deposé par coursier", "decoliser par le plateau technique".
