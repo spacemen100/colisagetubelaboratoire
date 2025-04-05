@@ -607,6 +607,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Set up the database
+  try {
+    await storage.initializeDefaultData();
+    console.log("Database initialized with default data");
+  } catch (error) {
+    console.error("Error initializing database:", error);
+  }
+  
   const httpServer = createServer(app);
   return httpServer;
 }

@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BarcodeScanner } from "@/components/scan/barcode-scanner";
 import { User as UserType } from "@shared/schema";
+import { useAuth } from "@/hooks/use-auth";
 
 const loginSchema = z.object({
   username: z.string().min(1, "L'identifiant est requis"),
@@ -62,9 +63,9 @@ interface AuthPageProps {
   };
 }
 
-export default function AuthPage({ authContext }: AuthPageProps) {
+export default function AuthPage() {
   const [authTab, setAuthTab] = useState<"barcode" | "password">("barcode");
-  const { loginMutation, loginWithBarcodeMutation, registerMutation } = authContext;
+  const { loginMutation, loginWithBarcodeMutation, registerMutation } = useAuth();
 
   // Login form
   const loginForm = useForm<z.infer<typeof loginSchema>>({
