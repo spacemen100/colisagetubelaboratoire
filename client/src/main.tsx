@@ -3,11 +3,15 @@ import { useState, useEffect } from "react";
 import "./index.css";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
-import { Switch, Route } from "wouter";
+import { Switch, Route, Router } from "wouter";
 import { Loader2 } from "lucide-react";
 import { Toaster } from "@/components/ui/toaster";
 import AuthPage from "@/pages/auth-page";
+import DashboardPage from "@/pages/dashboard-page";
 import { User } from "@shared/schema";
+import Header from "@/components/layout/header";
+import TabNavigation from "@/components/layout/tab-navigation";
+import { LabContextProvider } from "@/hooks/use-lab-context";
 
 // Super simplified version for debugging
 function App() {
@@ -67,18 +71,13 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <div className="min-h-screen">
         {user ? (
-          <div className="p-6 max-w-md mx-auto bg-white rounded-xl shadow-md">
-            <h1 className="text-2xl font-bold mb-4">Successfully Logged In!</h1>
-            <p><strong>Username:</strong> {user.username}</p>
-            <p><strong>Name:</strong> {user.name}</p>
-            <p><strong>Role:</strong> {user.role}</p>
-            <button 
-              className="mt-4 px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
-              onClick={() => authContextValue.logoutMutation.mutate()}
-            >
-              Logout
-            </button>
-          </div>
+          <LabContextProvider>
+            <div className="min-h-screen flex flex-col">
+              <Header />
+              <TabNavigation />
+              <DashboardPage />
+            </div>
+          </LabContextProvider>
         ) : (
           <AuthPage
             authContext={authContextValue}
