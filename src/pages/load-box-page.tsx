@@ -115,7 +115,7 @@ export default function LoadBoxPage() {
       setScannedTubes([]);
       // Invalidate queries to update dashboard
       if (currentLab) {
-        queryClient.invalidateQueries({ queryKey: [`/api/labs/${currentLab.id}/dashboard`] });
+        queryClient.invalidateQueries({ queryKey: [`/api/laboratories/${currentLab.id}/dashboard`] });
       }
     },
     onError: (error: Error) => {
@@ -127,9 +127,9 @@ export default function LoadBoxPage() {
     },
   });
   
-  // Query for getting labs (for destination lab selection)
+  // Query for getting laboratories (for destination lab selection)
   const { data: labs = [] } = useQuery({
-    queryKey: ["/api/labs"],
+    queryKey: ["/api/laboratories"],
     enabled: !!currentLab,
   });
   

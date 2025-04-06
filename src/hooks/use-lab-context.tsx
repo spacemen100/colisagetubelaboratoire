@@ -1,6 +1,7 @@
 import { createContext, ReactNode, useContext, useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
+import { PostgrestError } from "@supabase/supabase-js";
 
 type LabContextType = {
   labs: any[];
@@ -22,11 +23,14 @@ export function LabContextProvider({ children }: { children: ReactNode }) {
       setIsLoading(true);
       try {
         const { data, error } = await supabase
-          .from('labs')
+          .from('laboratories')
           .select('*')
           .order('name', { ascending: true });
         
-        if (error) throw error;
+        if (error) {
+          console.error('Error fetching laboratories:', error as PostgrestError);
+          return;
+        }
         
         setLabs(data || []);
         if (data?.length > 0 && !currentLab) {

@@ -27,7 +27,7 @@ export default function AlertsPage() {
   const [filterResolved, setFilterResolved] = useState<"all" | "active" | "resolved">("active");
   
   const { data: alerts = [], isLoading } = useQuery<Alert[]>({
-    queryKey: [currentLab ? `/api/labs/${currentLab.id}/alerts` : null, filterResolved !== "all" ? (filterResolved === "active" ? false : true) : undefined],
+    queryKey: [currentLab ? `/api/laboratories/${currentLab.id}/alerts` : null, filterResolved !== "all" ? (filterResolved === "active" ? false : true) : undefined],
     enabled: !!currentLab,
   });
   
@@ -36,7 +36,7 @@ export default function AlertsPage() {
       await apiRequest("POST", `/api/alerts/${alertId}/resolve`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/labs/${currentLab?.id}/alerts`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/laboratories/${currentLab?.id}/alerts`] });
       toast({
         title: "Alerte résolue",
         description: "L'alerte a été marquée comme résolue avec succès.",
@@ -60,7 +60,7 @@ export default function AlertsPage() {
       case "critical":
         return "destructive";
       case "warning":
-        return "amber";
+        return "secondary";
       default:
         return "default";
     }

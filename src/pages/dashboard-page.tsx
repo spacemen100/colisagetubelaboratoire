@@ -36,7 +36,7 @@ export default function DashboardPage() {
     isLoading,
     error,
   } = useQuery<DashboardData>({
-    queryKey: [currentLab ? `/api/labs/${currentLab.id}/dashboard` : null],
+    queryKey: [currentLab ? `/api/laboratories/${currentLab.id}/dashboard` : null],
     enabled: !!currentLab,
   });
 

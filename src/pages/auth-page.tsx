@@ -1,13 +1,18 @@
-import { useState } from "react";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
-import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { useLocation } from "wouter";
+import { useMutation } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 import { FlaskConical, User, Lock, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -20,20 +25,40 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BarcodeScanner } from "@/components/scan/barcode-scanner";
 import { User as UserType } from "@shared/schema";
-import { useAuth } from "@/hooks/use-auth";
 
 const loginSchema = z.object({
   username: z.string().min(1, "L'identifiant est requis"),
   password: z.string().min(1, "Le mot de passe est requis"),
 });
 
+type LoginFormValues = z.infer<typeof loginSchema>;
+
 const registerSchema = z.object({
-  username: z.string().min(3, "L'identifiant doit contenir au moins 3 caractères"),
-  password: z.string().min(6, "Le mot de passe doit contenir au moins 6 caractères"),
+  username: z.string()
+    .min(3, "L'identifiant doit contenir au moins 3 caractères")
+    .regex(/^[a-zA-Z0-9_-]+$/, "L'identifiant ne peut contenir que des lettres, chiffres, tirets et underscores")
+    .transform(val => val.toLowerCase()),
+  email: z.union([
+    z.string().email("Format d'email invalide"),
+    z.string().max(0)
+  ]).optional(),
+  password: z.string()
+    .min(6, "Le mot de passe doit contenir au moins 6 caractères")
+    .regex(/.*[A-Z].*/, "Le mot de passe doit contenir au moins une majuscule")
+    .regex(/.*[a-z].*/, "Le mot de passe doit contenir au moins une minuscule")
+    .regex(/.*\d.*/, "Le mot de passe doit contenir au moins un chiffre"),
   name: z.string().min(1, "Le nom est requis"),
+  displayName: z.string().min(2, "Le nom d'affichage doit contenir au moins 2 caractères"),
   role: z.string().min(1, "Le rôle est requis"),
   barcode: z.string().min(1, "Le code-barres employé est requis"),
 });
@@ -65,10 +90,17 @@ interface AuthPageProps {
 
 export default function AuthPage() {
   const [authTab, setAuthTab] = useState<"barcode" | "password">("barcode");
-  const { loginMutation, loginWithBarcodeMutation, registerMutation } = useAuth();
+  const { loginMutation, loginWithBarcodeMutation, registerUser } = useAuth();
+  const { toast } = useToast();
+  const [, setLocation] = useLocation();
+
+  // Handle successful login
+  const onLoginSuccess = () => {
+    setLocation('/');
+  };
 
   // Login form
-  const loginForm = useForm<z.infer<typeof loginSchema>>({
+  const loginForm = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
       username: "",
@@ -76,17 +108,45 @@ export default function AuthPage() {
     },
   });
 
-  const onLoginSubmit = (values: z.infer<typeof loginSchema>) => {
-    loginMutation.mutate(values);
+  const onLoginSubmit = loginForm.handleSubmit((data) => {
+    loginMutation.mutate(data, {
+      onSuccess: onLoginSuccess
+    });
+  });
+
+  const onBarcodeSubmit = (barcode: string) => {
+    loginWithBarcodeMutation.mutate({ barcode }, {
+      onSuccess: onLoginSuccess
+    });
   };
+
+  const registerMutation = useMutation({
+    mutationFn: registerUser,
+    onSuccess: () => {
+      toast({
+        title: "Inscription réussie",
+        description: "Votre compte a été créé avec succès.",
+      });
+      setLocation('/');
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erreur",
+        description: `Échec de l'inscription : ${error.message}`,
+        variant: "destructive",
+      });
+    },
+  });
 
   // Register form
   const registerForm = useForm<z.infer<typeof registerSchema>>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
       username: "",
+      email: "",
       password: "",
       name: "",
+      displayName: "",
       role: "Technicien",
       barcode: "",
     },
@@ -152,7 +212,11 @@ export default function AuthPage() {
 
                   <TabsContent value="login" className="space-y-4">
                     <Form {...loginForm}>
-                      <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-4">
+                      <form onSubmit={loginForm.handleSubmit((data) => {
+                        loginMutation.mutate(data, {
+                          onSuccess: onLoginSuccess
+                        });
+                      })} className="space-y-4">
                         <FormField
                           control={loginForm.control}
                           name="username"
@@ -218,7 +282,29 @@ export default function AuthPage() {
                             <FormItem>
                               <FormLabel>Identifiant</FormLabel>
                               <FormControl>
-                                <Input placeholder="Créez un identifiant" {...field} />
+                                <div className="relative">
+                                  <User className="absolute top-2.5 left-3 h-5 w-5 text-muted-foreground" />
+                                  <Input className="pl-10" placeholder="Choisissez un identifiant unique" {...field} />
+                                </div>
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={registerForm.control}
+                          name="email"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Email (optionnel)</FormLabel>
+                              <FormControl>
+                                <div className="relative">
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="absolute top-2.5 left-3 h-5 w-5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <rect width="20" height="16" x="2" y="4" rx="2"/>
+                                    <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
+                                  </svg>
+                                  <Input className="pl-10" type="email" placeholder="Entrez votre email (optionnel)" {...field} />
+                                </div>
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -249,6 +335,19 @@ export default function AuthPage() {
                               <FormLabel>Nom complet</FormLabel>
                               <FormControl>
                                 <Input placeholder="Entrez votre nom complet" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={registerForm.control}
+                          name="displayName"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Nom d'affichage</FormLabel>
+                              <FormControl>
+                                <Input placeholder="Entrez votre nom d'affichage" {...field} />
                               </FormControl>
                               <FormMessage />
                             </FormItem>

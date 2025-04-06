@@ -1,5 +1,6 @@
 import { useState, createContext, ReactNode, useContext, useEffect } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useLocation } from "wouter";
+import { useMutation, useQueryClient, QueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { User } from "@shared/schema";
@@ -12,6 +13,14 @@ type AuthContextType = {
   loginWithBarcodeMutation: ReturnType<typeof useLoginWithBarcodeMutation>;
   registerMutation: ReturnType<typeof useRegisterMutation>;
   logoutMutation: ReturnType<typeof useLogoutMutation>;
+  registerUser: (userData: {
+    username: string;
+    password: string;
+    name: string;
+    displayName: string;
+    role: string;
+    barcode: string;
+  }) => Promise<User>;
 };
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -20,31 +29,34 @@ const AuthContext = createContext<AuthContextType | null>(null);
 function useLoginMutation() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [, setLocation] = useLocation();
 
   return useMutation({
     mutationFn: async (credentials: { username: string; password: string }) => {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: credentials.username,
-        password: credentials.password,
+      console.log('🔑 Login attempt:', credentials.username);
+      const { data, error } = await supabase.rpc('authenticate_user', {
+        p_username: credentials.username,
+        p_password: credentials.password
       });
       
-      if (error) throw error;
+      console.log('🔐 Auth response:', { data, error });
       
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('username', credentials.username)
-        .single();
-        
-      if (userError) throw userError;
-      return userData;
+      if (error) throw error;
+      if (!data.success) throw new Error(data.message);
+      return data.user_data;
     },
     onSuccess: (user) => {
+      console.log('👤 Setting user data:', user);
       queryClient.setQueryData(['user'], user);
+      // Update AuthProvider state
+      const event = new CustomEvent('userLogin', { detail: user });
+      window.dispatchEvent(event);
       toast({
         title: "Connecté avec succès",
         description: `Bienvenue, ${user.name}!`,
       });
+      // Navigate to dashboard
+      setLocation('/');
     },
     onError: (error: Error) => {
       toast({
@@ -63,14 +75,14 @@ function useLoginWithBarcodeMutation() {
 
   return useMutation({
     mutationFn: async ({ barcode }: { barcode: string }) => {
-      const { data: userData, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('barcode', barcode)
-        .single();
+      const { data, error } = await supabase.rpc('authenticate_user', {
+        p_username: barcode,
+        p_password: barcode
+      });
         
       if (error) throw error;
-      return userData;
+      if (!data.success) throw new Error(data.message);
+      return data.user_data;
     },
     onSuccess: (user) => {
       queryClient.setQueryData(['user'], user);
@@ -99,31 +111,22 @@ function useRegisterMutation() {
       username: string;
       password: string;
       name: string;
+      displayName: string;
       role: string;
       barcode: string;
     }) => {
-      // Create auth user
-      const { data, error } = await supabase.auth.signUp({
-        email: userData.username,
-        password: userData.password,
+      const { data, error } = await supabase.rpc('register_user', {
+        p_username: userData.username,
+        p_password: userData.password,
+        p_name: userData.name,
+        p_display_name: userData.displayName,
+        p_role: userData.role,
+        p_barcode: userData.barcode
       });
       
       if (error) throw error;
-      
-      // Create user profile
-      const { data: newUser, error: userError } = await supabase
-        .from('users')
-        .insert([{
-          username: userData.username,
-          name: userData.name,
-          role: userData.role,
-          barcode: userData.barcode,
-        }])
-        .select()
-        .single();
-        
-      if (userError) throw userError;
-      return newUser;
+      if (!data.success) throw new Error(data.message);
+      return data.user_data;
     },
     onSuccess: (user) => {
       queryClient.setQueryData(['user'], user);
@@ -149,8 +152,8 @@ function useLogoutMutation() {
 
   return useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
+      // Supprimer le token JWT
+      localStorage.removeItem('auth_token');
     },
     onSuccess: () => {
       queryClient.setQueryData(['user'], null);
@@ -173,6 +176,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+
+  console.log('🔄 AuthProvider rendering, current user:', user);
   
   const loginMutation = useLoginMutation();
   const loginWithBarcodeMutation = useLoginWithBarcodeMutation();
@@ -180,41 +185,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logoutMutation = useLogoutMutation();
 
   useEffect(() => {
-    const checkSession = async () => {
-      const { data: { session }, error } = await supabase.auth.getSession();
-      if (!error && session?.user) {
-        const { data: userData, error: userError } = await supabase
-          .from('users')
-          .select('*')
-          .eq('username', session.user.email)
-          .single();
-          
-        if (!userError) {
-          setUser(userData);
-        }
-      }
-      setIsLoading(false);
+    const queryClient = new QueryClient();
+    const cachedUser = queryClient.getQueryData<User>(['user']);
+    if (cachedUser) {
+      console.log('🔑 Found cached user:', cachedUser);
+      setUser(cachedUser);
+    }
+    setIsLoading(false);
+
+    // Listen for login events
+    const handleLogin = (event: CustomEvent<User>) => {
+      console.log('🔓 Login event received:', event.detail);
+      setUser(event.detail);
     };
 
-    checkSession();
+    window.addEventListener('userLogin', handleLogin as EventListener);
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session?.user) {
-        const { data: userData, error } = await supabase
-          .from('users')
-          .select('*')
-          .eq('username', session.user.email)
-          .single();
-          
-        if (!error) {
-          setUser(userData);
-        }
-      } else {
-        setUser(null);
-      }
-    });
-
-    return () => subscription.unsubscribe();
+    return () => {
+      queryClient.clear();
+      window.removeEventListener('userLogin', handleLogin as EventListener);
+    };
   }, []);
 
   return (
@@ -227,6 +217,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loginWithBarcodeMutation,
         registerMutation,
         logoutMutation,
+        registerUser: registerMutation.mutateAsync,
       }}
     >
       {children}

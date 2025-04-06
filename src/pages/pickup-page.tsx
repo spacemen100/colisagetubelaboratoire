@@ -65,7 +65,7 @@ export default function PickupPage() {
   
   // Query for getting ready boxes
   const { data: readyBoxes = [], isLoading } = useQuery<Box[]>({
-    queryKey: [currentLab ? `/api/labs/${currentLab.id}/boxes` : null, "ready"],
+    queryKey: [currentLab ? `/api/laboratories/${currentLab.id}/boxes` : null, "ready"],
     enabled: !!currentLab,
   });
   
@@ -86,8 +86,8 @@ export default function PickupPage() {
       setScannedTransporterId(null);
       // Invalidate queries to update dashboard and boxes list
       if (currentLab) {
-        queryClient.invalidateQueries({ queryKey: [`/api/labs/${currentLab.id}/dashboard`] });
-        queryClient.invalidateQueries({ queryKey: [`/api/labs/${currentLab.id}/boxes`] });
+        queryClient.invalidateQueries({ queryKey: [`/api/laboratories/${currentLab.id}/dashboard`] });
+        queryClient.invalidateQueries({ queryKey: [`/api/laboratories/${currentLab.id}/boxes`] });
       }
     },
     onError: (error: Error) => {
@@ -298,7 +298,7 @@ export default function PickupPage() {
                             </Badge>
                           </TableCell>
                           <TableCell>{box.tubeCount}</TableCell>
-                          <TableCell>{new Date(box.createdAt).toLocaleDateString()}</TableCell>
+                          <TableCell>{box.createdAt ? new Date(box.createdAt).toLocaleDateString() : '-'}</TableCell>
                         </TableRow>
                       );
                     })}

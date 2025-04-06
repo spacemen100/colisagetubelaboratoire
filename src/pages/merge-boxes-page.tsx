@@ -33,7 +33,7 @@ export default function MergeBoxesPage() {
   
   // Query for getting available boxes
   const { data: availableBoxes = [], refetch: refetchBoxes } = useQuery<Box[]>({
-    queryKey: [currentLab ? `/api/labs/${currentLab.id}/boxes` : null, "open"],
+    queryKey: [currentLab ? `/api/laboratories/${currentLab.id}/boxes` : null, "open"],
     enabled: !!currentLab,
   });
   
@@ -81,7 +81,7 @@ export default function MergeBoxesPage() {
       setTargetTubes([]);
       // Invalidate queries to update dashboard
       if (currentLab) {
-        queryClient.invalidateQueries({ queryKey: [`/api/labs/${currentLab.id}/dashboard`] });
+        queryClient.invalidateQueries({ queryKey: [`/api/laboratories/${currentLab.id}/dashboard`] });
         refetchBoxes();
       }
     },

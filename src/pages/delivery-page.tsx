@@ -32,7 +32,7 @@ export default function DeliveryPage() {
   
   // Query for getting in_transit boxes
   const { data: inTransitBoxes = [], isLoading } = useQuery<Box[]>({
-    queryKey: [currentLab ? `/api/labs/${currentLab.id}/boxes` : null, "in_transit"],
+    queryKey: [currentLab ? `/api/laboratories/${currentLab.id}/boxes` : null, "in_transit"],
     enabled: !!currentLab,
   });
   
@@ -51,8 +51,8 @@ export default function DeliveryPage() {
       setScannedBoxes(prev => prev.filter(b => b.id !== box.id));
       // Invalidate queries to update dashboard and boxes list
       if (currentLab) {
-        queryClient.invalidateQueries({ queryKey: [`/api/labs/${currentLab.id}/dashboard`] });
-        queryClient.invalidateQueries({ queryKey: [`/api/labs/${currentLab.id}/boxes`] });
+        queryClient.invalidateQueries({ queryKey: [`/api/laboratories/${currentLab.id}/dashboard`] });
+        queryClient.invalidateQueries({ queryKey: [`/api/laboratories/${currentLab.id}/boxes`] });
       }
     },
     onError: (error: Error) => {
