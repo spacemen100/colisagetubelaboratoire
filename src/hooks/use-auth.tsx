@@ -1,4 +1,5 @@
 import { useState, createContext, ReactNode, useContext, useEffect } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { User } from "@shared/schema";
@@ -7,63 +8,207 @@ type AuthContextType = {
   user: User | null;
   isLoading: boolean;
   error: Error | null;
-  login: (credentials: { email: string; password: string }) => Promise<void>;
-  loginWithBarcode: (barcode: string) => Promise<void>;
-  logout: () => Promise<void>;
-  register: (userData: { email: string; password: string; name: string }) => Promise<void>;
+  loginMutation: ReturnType<typeof useLoginMutation>;
+  loginWithBarcodeMutation: ReturnType<typeof useLoginWithBarcodeMutation>;
+  registerMutation: ReturnType<typeof useRegisterMutation>;
+  logoutMutation: ReturnType<typeof useLogoutMutation>;
 };
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+// Login mutation hook
+function useLoginMutation() {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (credentials: { username: string; password: string }) => {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: credentials.username,
+        password: credentials.password,
+      });
+      
+      if (error) throw error;
+      
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('username', credentials.username)
+        .single();
+        
+      if (userError) throw userError;
+      return userData;
+    },
+    onSuccess: (user) => {
+      queryClient.setQueryData(['user'], user);
+      toast({
+        title: "Connecté avec succès",
+        description: `Bienvenue, ${user.name}!`,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Échec de la connexion",
+        description: error.message || "Identifiant ou mot de passe incorrect",
+        variant: "destructive",
+      });
+    },
+  });
+}
+
+// Login with barcode mutation hook
+function useLoginWithBarcodeMutation() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ barcode }: { barcode: string }) => {
+      const { data: userData, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('barcode', barcode)
+        .single();
+        
+      if (error) throw error;
+      return userData;
+    },
+    onSuccess: (user) => {
+      queryClient.setQueryData(['user'], user);
+      toast({
+        title: "Connecté avec succès",
+        description: `Bienvenue, ${user.name}!`,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Échec de la connexion",
+        description: "Code-barres invalide ou non reconnu",
+        variant: "destructive",
+      });
+    },
+  });
+}
+
+// Register mutation hook
+function useRegisterMutation() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (userData: {
+      username: string;
+      password: string;
+      name: string;
+      role: string;
+      barcode: string;
+    }) => {
+      // Create auth user
+      const { data, error } = await supabase.auth.signUp({
+        email: userData.username,
+        password: userData.password,
+      });
+      
+      if (error) throw error;
+      
+      // Create user profile
+      const { data: newUser, error: userError } = await supabase
+        .from('users')
+        .insert([{
+          username: userData.username,
+          name: userData.name,
+          role: userData.role,
+          barcode: userData.barcode,
+        }])
+        .select()
+        .single();
+        
+      if (userError) throw userError;
+      return newUser;
+    },
+    onSuccess: (user) => {
+      queryClient.setQueryData(['user'], user);
+      toast({
+        title: "Inscription réussie",
+        description: `Bienvenue, ${user.name}!`,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Échec de l'inscription",
+        description: error.message || "Une erreur est survenue lors de l'inscription",
+        variant: "destructive",
+      });
+    },
+  });
+}
+
+// Logout mutation hook
+function useLogoutMutation() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.setQueryData(['user'], null);
+      toast({
+        title: "Déconnexion réussie",
+        description: "À bientôt!",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Échec de la déconnexion",
+        description: error.message || "Une erreur est survenue lors de la déconnexion",
+        variant: "destructive",
+      });
+    },
+  });
+}
+
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  
+  const loginMutation = useLoginMutation();
+  const loginWithBarcodeMutation = useLoginWithBarcodeMutation();
+  const registerMutation = useRegisterMutation();
+  const logoutMutation = useLogoutMutation();
 
   useEffect(() => {
-    // Vérifier la session au chargement
     const checkSession = async () => {
-      setIsLoading(true);
-      try {
-        const { data: { session }, error } = await supabase.auth.getSession();
-        
-        if (error) throw error;
-        
-        if (session?.user) {
-          // Récupérer les infos supplémentaires de l'utilisateur
-          const { data: userData, error: userError } = await supabase
-            .from('users')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
-            
-          if (userError) throw userError;
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (!error && session?.user) {
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('*')
+          .eq('username', session.user.email)
+          .single();
+          
+        if (!userError) {
           setUser(userData);
         }
-      } catch (err) {
-        setError(err as Error);
-      } finally {
-        setIsLoading(false);
       }
+      setIsLoading(false);
     };
 
     checkSession();
 
-    // Écouter les changements d'authentification
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
         const { data: userData, error } = await supabase
           .from('users')
           .select('*')
-          .eq('id', session.user.id)
+          .eq('username', session.user.email)
           .single();
           
-        if (error) {
-          console.error('Error fetching user data:', error);
-          return;
+        if (!error) {
+          setUser(userData);
         }
-        setUser(userData);
       } else {
         setUser(null);
       }
@@ -72,157 +217,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const login = async (credentials: { email: string; password: string }) => {
-    setIsLoading(true);
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword(credentials);
-      
-      if (error) throw error;
-      
-      if (data?.user) {
-        const { data: userData, error: userError } = await supabase
-          .from('users')
-          .select('*')
-          .eq('id', data.user.id)
-          .single();
-          
-        if (userError) throw userError;
-        
-        setUser(userData);
-        toast({
-          title: "Connecté avec succès",
-          description: `Bienvenue, ${userData.name}!`,
-        });
-      }
-    } catch (err) {
-      setError(err as Error);
-      toast({
-        title: "Échec de la connexion",
-        description: (err as Error).message || "Identifiant ou mot de passe incorrect",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const loginWithBarcode = async (barcode: string) => {
-    setIsLoading(true);
-    try {
-      // Supposons que le code-barres est stocké dans la table user_profiles
-      const { data: profile, error: profileError } = await supabase
-        .from('user_profiles')
-        .select('user_id')
-        .eq('barcode', barcode)
-        .single();
-      
-      if (profileError || !profile) throw new Error("Code-barres non reconnu");
-      
-      // Récupérer l'utilisateur
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', profile.user_id)
-        .single();
-        
-      if (userError) throw userError;
-      
-      // Connecter l'utilisateur (cette partie dépend de votre stratégie d'authentification)
-      // Si vous utilisez magic link ou autre:
-      // await supabase.auth.signInWithOtp({ email: userData.email });
-      
-      setUser(userData);
-      toast({
-        title: "Connecté avec succès",
-        description: `Bienvenue, ${userData.name}!`,
-      });
-    } catch (err) {
-      setError(err as Error);
-      toast({
-        title: "Échec de la connexion",
-        description: (err as Error).message || "Code-barres non reconnu",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const register = async (userData: { email: string; password: string; name: string }) => {
-    setIsLoading(true);
-    try {
-      // Créer l'utilisateur dans Auth
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: userData.email,
-        password: userData.password,
-      });
-      
-      if (authError) throw authError;
-      
-      if (authData.user) {
-        // Créer l'utilisateur dans la table users
-        const { data: dbUser, error: dbError } = await supabase
-          .from('users')
-          .insert({
-            id: authData.user.id,
-            email: userData.email,
-            name: userData.name,
-            role: 'user' // ou autre rôle par défaut
-          })
-          .select()
-          .single();
-          
-        if (dbError) throw dbError;
-        
-        setUser(dbUser);
-        toast({
-          title: "Compte créé avec succès",
-          description: `Bienvenue, ${dbUser.name}!`,
-        });
-      }
-    } catch (err) {
-      setError(err as Error);
-      toast({
-        title: "Échec de l'inscription",
-        description: (err as Error).message,
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const logout = async () => {
-    setIsLoading(true);
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-      setUser(null);
-      toast({
-        title: "Déconnecté avec succès",
-      });
-    } catch (err) {
-      setError(err as Error);
-      toast({
-        title: "Échec de la déconnexion",
-        description: (err as Error).message,
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   return (
     <AuthContext.Provider
       value={{
         user,
         isLoading,
         error,
-        login,
-        loginWithBarcode,
-        logout,
-        register,
+        loginMutation,
+        loginWithBarcodeMutation,
+        registerMutation,
+        logoutMutation,
       }}
     >
       {children}
@@ -233,7 +237,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 export function useAuth() {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error("useAuth must be used within an AuthProvider");
+    throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
 }

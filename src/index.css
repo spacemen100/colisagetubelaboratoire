@@ -10,4 +10,36 @@
   body {
     @apply font-sans antialiased bg-background text-foreground;
   }
+  
+  /* Assurer que les routes prennent toute la largeur disponible */
+  html, body, #root {
+    @apply h-full w-full overflow-hidden;
+  }
+}
+
+@layer utilities {
+  /* Cacher la scrollbar tout en conservant la fonctionnalité */
+  .hide-scrollbar {
+    -ms-overflow-style: none;  /* IE et Edge */
+    scrollbar-width: none;     /* Firefox */
+  }
+  
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;             /* Chrome, Safari et Opera */
+  }
+  
+  /* Style personnalisé pour les badges */
+  .badge-alert {
+    @apply bg-red-100 text-red-600 text-xs font-medium rounded-full flex items-center justify-center;
+  }
+  
+  /* Pour ajouter un style aux cartes actives */
+  .card-active {
+    @apply ring-2 ring-primary ring-offset-2;
+  }
+  
+  /* Amélioration des transitions */
+  .smooth-transition {
+    @apply transition-all duration-300 ease-in-out;
+  }
 }
