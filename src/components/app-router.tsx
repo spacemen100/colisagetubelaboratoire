@@ -14,7 +14,6 @@ import UnloadBoxPage from "@/pages/unload-box-page";
 import ProfilePage from "@/pages/profile-page";
 import { useAuth } from "@/hooks/use-auth";
 
-// Custom ProtectedRoutes component that uses the AuthContext
 function ProtectedRoutes() {
   const { user, isLoading } = useAuth();
   

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useLocation } from "wouter";
@@ -89,10 +89,19 @@ interface AuthPageProps {
 }
 
 export default function AuthPage() {
-  const [authTab, setAuthTab] = useState<"barcode" | "password">("barcode");
-  const { loginMutation, loginWithBarcodeMutation, registerUser } = useAuth();
+  const { user, loginMutation, loginWithBarcodeMutation, registerMutation } = useAuth();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
+  const [authTab, setAuthTab] = useState<"barcode" | "password">("barcode");
+
+  console.log('🏠 AuthPage rendering, current user:', user);
+
+  useEffect(() => {
+    if (user) {
+      console.log('👌 User is authenticated, redirecting to dashboard');
+      setLocation('/');
+    }
+  }, [user, setLocation]);
 
   // Handle successful login
   const onLoginSuccess = () => {
@@ -108,35 +117,19 @@ export default function AuthPage() {
     },
   });
 
-  const onLoginSubmit = loginForm.handleSubmit((data) => {
-    loginMutation.mutate(data, {
-      onSuccess: onLoginSuccess
-    });
-  });
-
-  const onBarcodeSubmit = (barcode: string) => {
-    loginWithBarcodeMutation.mutate({ barcode }, {
+  const onSubmit = async (values: LoginFormValues) => {
+    console.log('📝 Login form submitted with values:', values);
+    loginMutation.mutate(values, {
       onSuccess: onLoginSuccess
     });
   };
 
-  const registerMutation = useMutation({
-    mutationFn: registerUser,
-    onSuccess: () => {
-      toast({
-        title: "Inscription réussie",
-        description: "Votre compte a été créé avec succès.",
-      });
-      setLocation('/');
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Erreur",
-        description: `Échec de l'inscription : ${error.message}`,
-        variant: "destructive",
-      });
-    },
-  });
+  const onBarcodeSubmit = async (values: { barcode: string }) => {
+    console.log('📝 Barcode login submitted with value:', values.barcode);
+    loginWithBarcodeMutation.mutate({ barcode: values.barcode }, {
+      onSuccess: onLoginSuccess
+    });
+  };
 
   // Register form
   const registerForm = useForm<z.infer<typeof registerSchema>>({
@@ -152,12 +145,15 @@ export default function AuthPage() {
     },
   });
 
-  const onRegisterSubmit = (values: z.infer<typeof registerSchema>) => {
-    registerMutation.mutate(values);
-  };
+  const onRegisterSubmit = registerForm.handleSubmit((data) => {
+    console.log('📝 Register form submitted with values:', data);
+    registerMutation.mutate(data);
+  });
+
 
   // Barcode login
   const handleBarcodeScanned = (barcode: string) => {
+    console.log('📊 Barcode scanned:', barcode);
     loginWithBarcodeMutation.mutate({ barcode });
   };
 
@@ -274,7 +270,7 @@ export default function AuthPage() {
 
                   <TabsContent value="register" className="space-y-4">
                     <Form {...registerForm}>
-                      <form onSubmit={registerForm.handleSubmit(onRegisterSubmit)} className="space-y-4">
+                      <form onSubmit={onRegisterSubmit} className="space-y-4">
                         <FormField
                           control={registerForm.control}
                           name="username"
