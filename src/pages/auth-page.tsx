@@ -3,7 +3,6 @@ import { useForm, SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useLocation } from "wouter";
-import { useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { FlaskConical, User, Lock, Loader2 } from "lucide-react";
@@ -63,50 +62,31 @@ const registerSchema = z.object({
   barcode: z.string().min(1, "Le code-barres employé est requis"),
 });
 
-// Auth Page Props
-interface AuthPageProps {
-  authContext: {
-    user: UserType | null;
-    isLoading: boolean;
-    error: Error | null;
-    loginMutation: {
-      mutate: (credentials: { username: string; password: string }) => void;
-      isPending: boolean;
-    };
-    loginWithBarcodeMutation: {
-      mutate: (data: { barcode: string }) => void;
-      isPending: boolean;
-    };
-    registerMutation: {
-      mutate: (userData: any) => void;
-      isPending: boolean;
-    };
-    logoutMutation: {
-      mutate: () => void;
-      isPending: boolean;
-    };
-  };
-}
-
 export default function AuthPage() {
-  const { user, loginMutation, loginWithBarcodeMutation, registerMutation } = useAuth();
-  const { toast } = useToast();
+  const {
+    user,
+    isLoading,
+    loginMutation,
+    loginWithBarcodeMutation,
+    registerMutation
+  } = useAuth();
+
   const [, setLocation] = useLocation();
   const [authTab, setAuthTab] = useState<"barcode" | "password">("barcode");
 
-  console.log('🏠 AuthPage rendering, current user:', user);
-
   useEffect(() => {
-    if (user) {
-      console.log('👌 User is authenticated, redirecting to dashboard');
+    if (user && !isLoading) {
       setLocation('/');
     }
-  }, [user, setLocation]);
+  }, [user, isLoading, setLocation]);
 
-  // Handle successful login
-  const onLoginSuccess = () => {
-    setLocation('/');
-  };
+  if (isLoading || user) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   // Login form
   const loginForm = useForm<LoginFormValues>({
@@ -120,14 +100,18 @@ export default function AuthPage() {
   const onSubmit = async (values: LoginFormValues) => {
     console.log('📝 Login form submitted with values:', values);
     loginMutation.mutate(values, {
-      onSuccess: onLoginSuccess
+      onSuccess: () => {
+        setLocation('/');
+      }
     });
   };
 
   const onBarcodeSubmit = async (values: { barcode: string }) => {
     console.log('📝 Barcode login submitted with value:', values.barcode);
     loginWithBarcodeMutation.mutate({ barcode: values.barcode }, {
-      onSuccess: onLoginSuccess
+      onSuccess: () => {
+        setLocation('/');
+      }
     });
   };
 
@@ -149,7 +133,6 @@ export default function AuthPage() {
     console.log('📝 Register form submitted with values:', data);
     registerMutation.mutate(data);
   });
-
 
   // Barcode login
   const handleBarcodeScanned = (barcode: string) => {
@@ -173,9 +156,9 @@ export default function AuthPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Tabs 
-              defaultValue="barcode" 
-              value={authTab} 
+            <Tabs
+              defaultValue="barcode"
+              value={authTab}
               onValueChange={(value) => setAuthTab(value as "barcode" | "password")}
               className="space-y-4"
             >
@@ -185,12 +168,12 @@ export default function AuthPage() {
               </TabsList>
 
               <TabsContent value="barcode" className="space-y-4">
-                <BarcodeScanner 
-                  onScan={handleBarcodeScanned} 
+                <BarcodeScanner
+                  onScan={handleBarcodeScanned}
                   scanning={loginWithBarcodeMutation.isPending}
                   scanText="Veuillez scanner votre badge employé"
                 />
-                
+
                 {loginWithBarcodeMutation.isPending && (
                   <div className="text-center text-sm text-muted-foreground mt-4">
                     <Loader2 className="h-4 w-4 animate-spin inline mr-2" />
@@ -208,11 +191,7 @@ export default function AuthPage() {
 
                   <TabsContent value="login" className="space-y-4">
                     <Form {...loginForm}>
-                      <form onSubmit={loginForm.handleSubmit((data) => {
-                        loginMutation.mutate(data, {
-                          onSuccess: onLoginSuccess
-                        });
-                      })} className="space-y-4">
+                      <form onSubmit={loginForm.handleSubmit(onSubmit)} className="space-y-4">
                         <FormField
                           control={loginForm.control}
                           name="username"
@@ -405,7 +384,7 @@ export default function AuthPage() {
           <FlaskConical className="h-16 w-16 mb-6" />
           <h1 className="text-4xl font-bold mb-4">Système de Suivi d'Échantillons Médicaux</h1>
           <p className="text-lg opacity-90 mb-6">
-            Suivez les échantillons médicaux avec précision grâce à la lecture de codes-barres, 
+            Suivez les échantillons médicaux avec précision grâce à la lecture de codes-barres,
             gérez les boîtes de transport et surveillez le transport en temps réel.
           </p>
           <div className="space-y-3">

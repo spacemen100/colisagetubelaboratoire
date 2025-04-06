@@ -1,4 +1,4 @@
-import { useState, createContext, ReactNode, useContext, useEffect } from "react";
+import { useState, createContext, ReactNode, useContext, useEffect, useCallback } from "react";
 import { useLocation } from "wouter";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -13,48 +13,33 @@ type AuthContextType = {
   loginWithBarcodeMutation: ReturnType<typeof useLoginWithBarcodeMutation>;
   registerMutation: ReturnType<typeof useRegisterMutation>;
   logoutMutation: ReturnType<typeof useLogoutMutation>;
-  registerUser: (userData: {
-    username: string;
-    password: string;
-    name: string;
-    displayName: string;
-    role: string;
-    barcode: string;
-  }) => Promise<User>;
+  checkAuth: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-// Login mutation hook
 function useLoginMutation() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [, setLocation] = useLocation();
 
   return useMutation({
     mutationFn: async (credentials: { username: string; password: string }) => {
-      console.log('🔑 Login attempt:', credentials.username);
       const { data, error } = await supabase.rpc('authenticate_user', {
         p_username: credentials.username,
         p_password: credentials.password,
       });
-      console.log('🔐 Auth response:', { data, error });
       if (error) throw error;
       if (!data.success) throw new Error(data.message);
       return data.user_data;
     },
     onSuccess: (user) => {
-      console.log('👤 Setting user data in onSuccess:', user);
       queryClient.setQueryData(['user'], user);
-      window.dispatchEvent(new CustomEvent('userLogin', { detail: user }));
       toast({
         title: "Connecté avec succès",
         description: `Bienvenue, ${user.name}!`,
       });
-      setLocation('/');
     },
     onError: (error: Error) => {
-      console.error('❌ Login error:', error);
       toast({
         title: "Échec de la connexion",
         description: error.message || "Identifiant ou mot de passe incorrect",
@@ -64,11 +49,9 @@ function useLoginMutation() {
   });
 }
 
-// Login with barcode mutation hook
 function useLoginWithBarcodeMutation() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [, setLocation] = useLocation();
 
   return useMutation({
     mutationFn: async ({ barcode }: { barcode: string }) => {
@@ -81,16 +64,13 @@ function useLoginWithBarcodeMutation() {
       return data.user_data;
     },
     onSuccess: (user) => {
-      console.log('👤 Setting user data in onSuccess (barcode):', user);
       queryClient.setQueryData(['user'], user);
       toast({
         title: "Connecté avec succès",
         description: `Bienvenue, ${user.name}!`,
       });
-      setLocation('/');
     },
     onError: (error: Error) => {
-      console.error('❌ Barcode login error:', error);
       toast({
         title: "Échec de la connexion",
         description: "Code-barres invalide ou non reconnu",
@@ -100,11 +80,9 @@ function useLoginWithBarcodeMutation() {
   });
 }
 
-// Register mutation hook
 function useRegisterMutation() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [, setLocation] = useLocation();
 
   return useMutation({
     mutationFn: async (userData: {
@@ -128,16 +106,13 @@ function useRegisterMutation() {
       return data.user_data;
     },
     onSuccess: (user) => {
-      console.log('👤 Setting user data in onSuccess (register):', user);
       queryClient.setQueryData(['user'], user);
       toast({
         title: "Inscription réussie",
         description: `Bienvenue, ${user.name}!`,
       });
-      setLocation('/');
     },
     onError: (error: Error) => {
-      console.error('❌ Registration error:', error);
       toast({
         title: "Échec de l'inscription",
         description: error.message || "Une erreur est survenue lors de l'inscription",
@@ -147,7 +122,6 @@ function useRegisterMutation() {
   });
 }
 
-// Logout mutation hook
 function useLogoutMutation() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -159,16 +133,14 @@ function useLogoutMutation() {
       if (error) throw error;
     },
     onSuccess: () => {
-      console.log('🔒 User logged out, clearing user data');
       queryClient.setQueryData(['user'], null);
+      setLocation('/auth');
       toast({
         title: "Déconnexion réussie",
         description: "À bientôt!",
       });
-      setLocation('/auth');
     },
     onError: (error: Error) => {
-      console.error('❌ Logout error:', error);
       toast({
         title: "Échec de la déconnexion",
         description: error.message || "Une erreur est survenue lors de la déconnexion",
@@ -179,61 +151,50 @@ function useLogoutMutation() {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const queryClient = useQueryClient();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  const queryClient = useQueryClient();
+  const user = queryClient.getQueryData<User>(['user']);
 
-  console.log('🔄 AuthProvider rendering, current user:', user);
-
-  const loginMutation = useLoginMutation();
-  const loginWithBarcodeMutation = useLoginWithBarcodeMutation();
-  const registerMutation = useRegisterMutation();
-  const logoutMutation = useLogoutMutation();
+  const checkAuth = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (authUser) {
+        const { data } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', authUser.id)
+          .single();
+        if (data) {
+          queryClient.setQueryData(['user'], data);
+        }
+      }
+    } catch (err) {
+      setError(err as Error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [queryClient]);
 
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const { data: { user: sessionUser } } = await supabase.auth.getUser();
-        if (sessionUser) {
-          const { data } = await supabase
-            .from('users')
-            .select('*')
-            .eq('id', sessionUser.id)
-            .single();
-          if (data) {
-            setUser(data);
-            queryClient.setQueryData(['user'], data);
-          }
-        }
-      } catch (error) {
-        setError(error as Error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     checkAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session?.user) {
-        const { data } = await supabase
-          .from('users')
-          .select('*')
-          .eq('id', session.user.id)
-          .single();
-        if (data) {
-          setUser(data);
-          queryClient.setQueryData(['user'], data);
-        }
+        await checkAuth();
       } else if (event === 'SIGNED_OUT') {
-        setUser(null);
         queryClient.setQueryData(['user'], null);
       }
     });
 
     return () => subscription.unsubscribe();
-  }, [queryClient]);
+  }, [checkAuth, queryClient]);
+
+  const loginMutation = useLoginMutation();
+  const loginWithBarcodeMutation = useLoginWithBarcodeMutation();
+  const registerMutation = useRegisterMutation();
+  const logoutMutation = useLogoutMutation();
 
   const value = {
     user,
@@ -243,7 +204,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loginWithBarcodeMutation,
     registerMutation,
     logoutMutation,
-    registerUser: registerMutation.mutateAsync,
+    checkAuth,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
