@@ -67,12 +67,6 @@ export default function AuthPage() {
   const [authTab, setAuthTab] = useState<"barcode" | "password">("barcode");
   const { loginMutation, loginWithBarcodeMutation, registerMutation } = useAuth();
 
-  // Background pattern style
-  const patternStyle = {
-    backgroundImage: `radial-gradient(circle at 1px 1px, rgb(226 232 240 / 0.5) 1px, transparent 0)`,
-    backgroundSize: '40px 40px',
-  };
-
   // Login form
   const loginForm = useForm<z.infer<typeof loginSchema>>({
     resolver: zodResolver(loginSchema),
@@ -108,21 +102,17 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="flex min-h-screen bg-slate-50" style={patternStyle}>
-      <div className="flex flex-col justify-center w-full max-w-md p-8 md:p-12 relative z-10">
-        <div className="flex items-center justify-center mb-8 select-none">
-          <div className="bg-primary/10 p-3 rounded-2xl">
-            <FlaskConical className="text-primary text-4xl" />
-          </div>
-          <h1 className="text-3xl font-bold ml-4 bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">LabTrack</h1>
+    <div className="flex min-h-screen bg-slate-50">
+      <div className="flex flex-col justify-center w-full max-w-md p-8 md:p-12">
+        <div className="flex items-center justify-center mb-8">
+          <FlaskConical className="text-primary text-3xl mr-2" />
+          <h1 className="text-2xl font-bold">LabTrack</h1>
         </div>
 
-        <Card className="border-0 shadow-xl bg-white/80 backdrop-blur-sm">
-          <CardHeader className="space-y-3">
-            <CardTitle className="text-2xl font-bold text-center bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
-              Se connecter
-            </CardTitle>
-            <CardDescription className="text-center text-slate-600">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-2xl text-center">Se connecter</CardTitle>
+            <CardDescription className="text-center">
               Accédez au système de suivi d'échantillons médicaux
             </CardDescription>
           </CardHeader>
@@ -133,26 +123,9 @@ export default function AuthPage() {
               onValueChange={(value) => setAuthTab(value as "barcode" | "password")}
               className="space-y-4"
             >
-              <TabsList className="grid w-full grid-cols-2 bg-slate-100/50">
-                <TabsTrigger value="barcode" className="data-[state=active]:bg-white data-[state=active]:text-primary">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M3 7V5a2 2 0 0 1 2-2h2"/>
-                    <path d="M17 3h2a2 2 0 0 1 2 2v2"/>
-                    <path d="M21 17v2a2 2 0 0 1-2 2h-2"/>
-                    <path d="M7 21H5a2 2 0 0 1-2-2v-2"/>
-                    <line x1="8" y1="7" x2="8" y2="17"/>
-                    <line x1="12" y1="7" x2="12" y2="17"/>
-                    <line x1="16" y1="7" x2="16" y2="17"/>
-                  </svg>
-                  Scan code-barres
-                </TabsTrigger>
-                <TabsTrigger value="password" className="data-[state=active]:bg-white data-[state=active]:text-primary">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M2 18v3c0 .6.4 1 1 1h4v-3h3v-3h2l1.4-1.4a6.5 6.5 0 1 0-4-4Z"/>
-                    <circle cx="16.5" cy="7.5" r=".5"/>
-                  </svg>
-                  Identifiant / Mot de passe
-                </TabsTrigger>
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="barcode">Scan code-barres</TabsTrigger>
+                <TabsTrigger value="password">Identifiant / Mot de passe</TabsTrigger>
               </TabsList>
 
               <TabsContent value="barcode" className="space-y-4">
@@ -332,16 +305,11 @@ export default function AuthPage() {
       </div>
 
       {/* Hero section */}
-      <div className="hidden md:flex flex-1 bg-gradient-to-br from-primary to-primary/80 text-white p-8 items-center justify-center relative overflow-hidden">
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
-        <div className="absolute inset-0 bg-[radial-gradient(circle_800px_at_100%_200px,rgba(255,255,255,0.1),transparent)]">
-        </div>
-        <div className="max-w-md relative z-10">
-          <div className="bg-white/10 p-4 rounded-2xl inline-block mb-6">
-            <FlaskConical className="h-16 w-16" />
-          </div>
-          <h1 className="text-4xl font-bold mb-4 drop-shadow-sm">Système de Suivi d'Échantillons Médicaux</h1>
-          <p className="text-lg text-white/90 mb-6 leading-relaxed">
+      <div className="hidden md:flex flex-1 bg-primary text-white p-8 items-center justify-center">
+        <div className="max-w-md">
+          <FlaskConical className="h-16 w-16 mb-6" />
+          <h1 className="text-4xl font-bold mb-4">Système de Suivi d'Échantillons Médicaux</h1>
+          <p className="text-lg opacity-90 mb-6">
             Suivez les échantillons médicaux avec précision grâce à la lecture de codes-barres, 
             gérez les boîtes de transport et surveillez le transport en temps réel.
           </p>
